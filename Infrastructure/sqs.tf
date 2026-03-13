@@ -1,11 +1,16 @@
-# creating an SQS queue
-resource "aws_sqs_queue" "my_queue" {
-  name = "my_queue"
+# Creating aws sqs queue for order processing named "order_processing_queue"
+resource "aws_sqs_queue" "order_processing_queue" {
+  name = "order_processing_queue"
 }
 
-# creating an SQS queue policy
-resource "aws_sqs_queue_policy" "my_queue_policy" {
-  queue_url = aws_sqs_queue.my_queue.id
+# creating aws sqs queue for order analytics named "order_analytics_queue"
+resource "aws_sqs_queue" "order_analytics_queue" {
+  name = "order_analytics_queue"
+}
+
+# create a policy to allow sns order processing topic to send message to the order processing queue
+resource "aws_sqs_queue_policy" "order_processing_queue_policy" {
+  queue_url = aws_sqs_queue.order_processing_queue.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -13,29 +18,29 @@ resource "aws_sqs_queue_policy" "my_queue_policy" {
       {
         Effect = "Allow"
         Principal = {
-          Service = "lambda.amazonaws.com"
+          Service = "sns.amazonaws.com"
         }
         Action = "SQS:SendMessage"
-        Resource = aws_sqs_queue.my_queue.arn
+        Resource = aws_sqs_queue.order_processing_queue.arn
+        Condition = {
+          "ArnEquals" = {
+            "aws:SourceArn" = aws_sns_topic.order_processing_topic.arn
+          }
+        }
       }
     ]
   })
 }
 
-# creating an SQS event source mapping
-resource "aws_lambda_event_source_mapping" "my_event_source" {
-  event_source_arn = aws_sqs_queue.my_queue.arn
-  function_name    = aws_lambda_function.my_lambda.arn
+# attach the order processing policy to the order processing queue
+resource "aws_sqs_queue_policy_attachment" "order_processing_queue_policy_attachment" {
+  queue_url = aws_sqs_queue.order_processing_queue.id
+  policy_arn = aws_sqs_queue_policy.order_processing_queue_policy.arn
 }
 
-# dead letter queue
-resource "aws_sqs_queue" "my_dead_letter_queue" {
-  name = "my_dead_letter_queue"
-}
-
-# creating a dead letter queue policy
-resource "aws_sqs_queue_policy" "my_dead_letter_queue_policy" {
-  queue_url = aws_sqs_queue.my_dead_letter_queue.id
+# create a policy to allow sns order processing topic to send message to the order analytics queue
+resource "aws_sqs_queue_policy" "order_analytics_queue_policy" {
+  queue_url = aws_sqs_queue.order_analytics_queue.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -43,17 +48,22 @@ resource "aws_sqs_queue_policy" "my_dead_letter_queue_policy" {
       {
         Effect = "Allow"
         Principal = {
-          Service = "lambda.amazonaws.com"
+          Service = "sns.amazonaws.com"
         }
         Action = "SQS:SendMessage"
-        Resource = aws_sqs_queue.my_dead_letter_queue.arn
+        Resource = aws_sqs_queue.order_analytics_queue.arn
+        Condition = {
+          "ArnEquals" = {
+            "aws:SourceArn" = aws_sns_topic.order_processing_topic.arn
+          }
+        }
       }
     ]
   })
 }
 
-# creating a dead letter queue event source mapping
-resource "aws_lambda_event_source_mapping" "my_dead_letter_event_source" {
-  event_source_arn = aws_sqs_queue.my_dead_letter_queue.arn
-  function_name    = aws_lambda_function.my_lambda.arn
+# attaching the order_analytics_queue_policy to the order_analytics_queue
+resource "aws_sqs_queue_policy_attachment" "order_analytics_queue_policy_attachment" {
+  queue_url = aws_sqs_queue.order_analytics_queue.id
+  policy_arn = aws_sqs_queue_policy.order_analytics_queue_policy.arn
 }
