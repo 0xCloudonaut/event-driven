@@ -14,6 +14,31 @@ resource "aws_lambda_function" "order_place_event" {
   }
 }
 
+# creating a role for the order placing event
+resource "aws_iam_role" "order_place_event" {
+  name = "order_place_event_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action    = "sts:AssumeRole"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Effect    = "Allow"
+        Sid       = ""
+      }
+    ]
+  })
+}
+
+# attaching the policy to the order placing event to push the message to the SNS
+resource "aws_iam_role_policy_attachment" "order_place_event" {
+  policy_arn = aws_iam_policy.AWSLambdaSNSPublishPolicy.arn
+  role       = aws_iam_role.order_place_event.name
+}
+
 # creating lambda function for creating event of order analytics
 resource "aws_lambda_function" "order_analytics_event" {
   function_name = "order_analytics_event"
