@@ -1,3 +1,5 @@
+//////////////////// Lambda Event for Order Placing //////////////////////
+
 # creating lambda function for creating event of order place
 resource "aws_lambda_function" "order_place_event" {
   function_name = "order_place_event"
@@ -38,6 +40,8 @@ resource "aws_iam_role_policy_attachment" "order_place_event" {
   policy_arn = aws_iam_policy.AWSLambdaSNSPublishPolicy.arn
   role       = aws_iam_role.order_place_event.name
 }
+
+//////////////////// Lambda Event for Order Analytics //////////////////////
 
 # creating lambda function for creating event of order analytics
 resource "aws_lambda_function" "order_analytics_event" {
@@ -86,6 +90,8 @@ resource "aws_iam_role_policy_attachment" "order_analytics_event" {
   policy_arn = aws_iam_policy.AWSLambdaSQSQueueExecutionRole.arn
   role       = aws_iam_role.order_analytics_event.name
 }
+
+//////////////////// Lambda Event for Order Processing //////////////////////
 
 # create lambda function for processing order events
 resource "aws_lambda_function" "order_processing_event" {

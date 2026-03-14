@@ -1,11 +1,8 @@
+////////////////////////////// Order Processing //////////////////////////////
+
 # Creating aws sqs queue for order processing named "order_processing_queue"
 resource "aws_sqs_queue" "order_processing_queue" {
   name = "order_processing_queue"
-}
-
-# creating aws sqs queue for order analytics named "order_analytics_queue"
-resource "aws_sqs_queue" "order_analytics_queue" {
-  name = "order_analytics_queue"
 }
 
 # create a policy to allow sns order processing topic to send message to the order processing queue
@@ -36,6 +33,13 @@ resource "aws_sqs_queue_policy" "order_processing_queue_policy" {
 resource "aws_sqs_queue_policy_attachment" "order_processing_queue_policy_attachment" {
   queue_url = aws_sqs_queue.order_processing_queue.id
   policy_arn = aws_sqs_queue_policy.order_processing_queue_policy.arn
+}
+
+////////////////////////////// Order Analytics //////////////////////////////
+
+# creating aws sqs queue for order analytics named "order_analytics_queue"
+resource "aws_sqs_queue" "order_analytics_queue" {
+  name = "order_analytics_queue"
 }
 
 # create a policy to allow sns order processing topic to send message to the order analytics queue
