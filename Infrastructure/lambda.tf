@@ -41,6 +41,17 @@ resource "aws_iam_role_policy_attachment" "order_place_event" {
   role       = aws_iam_role.order_place_event.name
 }
 
+# allow api gateway to invoke the lambda function
+resource "aws_lambda_permission" "allow_api_gateway" {
+  statement_id  = "AllowAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.order_place_event.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  # The source ARN is the ARN of the API Gateway method
+  source_arn = "${aws_api_gateway_rest_api.order_place_api.execution_arn}/*/*"
+}
+
 //////////////////// Lambda Event for Order Analytics //////////////////////
 
 # creating lambda function for creating event of order analytics
