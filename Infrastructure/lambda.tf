@@ -7,7 +7,7 @@ resource "aws_lambda_function" "order_place_event" {
   role        = aws_iam_role.lambda_exec.arn
   handler     = "lambda_function.lambda_handler"
 
-  source_code_hash = filebase64sha256("lambda_function.zip")
+  source_code_hash = filebase64sha256("lambda_function_order_place.zip")
 
   environment {
     variables = {
@@ -50,7 +50,7 @@ resource "aws_lambda_function" "order_analytics_event" {
   role        = aws_iam_role.lambda_exec.arn
   handler     = "lambda_function.lambda_handler"
 
-  source_code_hash = filebase64sha256("lambda_function.zip")
+  source_code_hash = filebase64sha256("lambda_function_order_analytics.zip")
 
   environment {
     variables = {
@@ -100,7 +100,7 @@ resource "aws_lambda_function" "order_processing_event" {
   role        = aws_iam_role.lambda_exec.arn
   handler     = "lambda_function.lambda_handler"
 
-  source_code_hash = filebase64sha256("lambda_function.zip")
+  source_code_hash = filebase64sha256("lambda_function_order_processing.zip")
 
   environment {
     variables = {
