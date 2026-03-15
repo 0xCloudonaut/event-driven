@@ -49,6 +49,7 @@ resource "aws_lambda_function" "order_analytics_event" {
   runtime      = "python3.8"
   role        = aws_iam_role.lambda_exec.arn
   handler     = "lambda_function.lambda_handler"
+  timeout     = 60
 
   source_code_hash = filebase64sha256("lambda_function_order_analytics.zip")
 
@@ -99,7 +100,7 @@ resource "aws_lambda_function" "order_processing_event" {
   runtime      = "python3.8"
   role        = aws_iam_role.lambda_exec.arn
   handler     = "lambda_function.lambda_handler"
-
+  timeout     = 60
   source_code_hash = filebase64sha256("lambda_function_order_processing.zip")
 
   environment {

@@ -3,11 +3,14 @@
 # creating a dead letter queue for order processing
 resource "aws_sqs_queue" "order_processing_dlq" {
   name = "order_processing_dlq"
+  message_retention_seconds = 1209600 # set message retention to 14 days for dead letter queue
 }
 
 # creating main order processing queue named order processing main with dead letter queue and policy
 resource "aws_sqs_queue" "order_processing_main" {
   name = "order_processing_main"
+  message_retention_seconds = 86400
+  visibility_timeout_seconds = aws_lambda_event_source_mapping.order_processing_event.timeout * 6
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.order_processing_dlq.arn
     maxReceiveCount     = 5
@@ -43,11 +46,14 @@ resource "aws_sqs_queue_policy" "order_processing_main_policy" {
 # creating dead letter queue for order analytics
 resource "aws_sqs_queue" "order_analytics_dlq" {
   name = "order_analytics_dlq"
+  message_retention_seconds = 1209600 # set message retention to 14 days for dead letter queue
 }
 
 # creating main order analytics queue named order analytics main with dead letter queue and policy
 resource "aws_sqs_queue" "order_analytics_main" {
   name = "order_analytics_main"
+  message_retention_seconds = 86400
+  visibility_timeout_seconds = aws_lambda_event_source_mapping.order_analytics_event.timeout * 6
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.order_analytics_dlq.arn
     maxReceiveCount     = 5
