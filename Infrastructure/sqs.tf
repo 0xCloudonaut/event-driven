@@ -1,13 +1,22 @@
-////////////////////////////// Order Processing //////////////////////////////
+////////////////////////////// Order processing Queue setup //////////////////////////////
 
-# Creating aws sqs queue for order processing named "order_processing_queue"
-resource "aws_sqs_queue" "order_processing_queue" {
-  name = "order_processing_queue"
+# creating a dead letter queue for order processing
+resource "aws_sqs_queue" "order_processing_dlq" {
+  name = "order_processing_dlq"
 }
 
-# create a policy to allow sns order processing topic to send message to the order processing queue
-resource "aws_sqs_queue_policy" "order_processing_queue_policy" {
-  queue_url = aws_sqs_queue.order_processing_queue.id
+# creating main order processing queue named order processing main with dead letter queue and policy
+resource "aws_sqs_queue" "order_processing_main" {
+  name = "order_processing_main"
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.order_processing_dlq.arn
+    maxReceiveCount     = 5
+  })
+}
+
+# allow access for SNS order processing topic
+resource "aws_sqs_queue_policy" "order_processing_main_policy" {
+  queue_url = aws_sqs_queue.order_processing_main.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -18,10 +27,10 @@ resource "aws_sqs_queue_policy" "order_processing_queue_policy" {
           Service = "sns.amazonaws.com"
         }
         Action = "SQS:SendMessage"
-        Resource = aws_sqs_queue.order_processing_queue.arn
+        Resource = aws_sqs_queue.order_processing_main.arn
         Condition = {
-          "ArnEquals" = {
-            "aws:SourceArn" = aws_sns_topic.order_processing_topic.arn
+          ArnEquals = {
+            "aws:SourceArn" = aws_sns_topic.order_processing.arn
           }
         }
       }
@@ -29,22 +38,25 @@ resource "aws_sqs_queue_policy" "order_processing_queue_policy" {
   })
 }
 
-# attach the order processing policy to the order processing queue
-resource "aws_sqs_queue_policy_attachment" "order_processing_queue_policy_attachment" {
-  queue_url = aws_sqs_queue.order_processing_queue.id
-  policy_arn = aws_sqs_queue_policy.order_processing_queue_policy.arn
+////////////////////////////// Order processing Queue setup //////////////////////////////
+
+# creating dead letter queue for order analytics
+resource "aws_sqs_queue" "order_analytics_dlq" {
+  name = "order_analytics_dlq"
 }
 
-////////////////////////////// Order Analytics //////////////////////////////
-
-# creating aws sqs queue for order analytics named "order_analytics_queue"
-resource "aws_sqs_queue" "order_analytics_queue" {
-  name = "order_analytics_queue"
+# creating main order analytics queue named order analytics main with dead letter queue and policy
+resource "aws_sqs_queue" "order_analytics_main" {
+  name = "order_analytics_main"
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.order_analytics_dlq.arn
+    maxReceiveCount     = 5
+  })
 }
 
-# create a policy to allow sns order processing topic to send message to the order analytics queue
-resource "aws_sqs_queue_policy" "order_analytics_queue_policy" {
-  queue_url = aws_sqs_queue.order_analytics_queue.id
+# allow access for SNS order analytics topic
+resource "aws_sqs_queue_policy" "order_analytics_main_policy" {
+  queue_url = aws_sqs_queue.order_analytics_main.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -55,19 +67,13 @@ resource "aws_sqs_queue_policy" "order_analytics_queue_policy" {
           Service = "sns.amazonaws.com"
         }
         Action = "SQS:SendMessage"
-        Resource = aws_sqs_queue.order_analytics_queue.arn
+        Resource = aws_sqs_queue.order_analytics_main.arn
         Condition = {
-          "ArnEquals" = {
-            "aws:SourceArn" = aws_sns_topic.order_processing_topic.arn
+          ArnEquals = {
+            "aws:SourceArn" = aws_sns_topic.order_analytics.arn
           }
         }
       }
     ]
   })
-}
-
-# attaching the order_analytics_queue_policy to the order_analytics_queue
-resource "aws_sqs_queue_policy_attachment" "order_analytics_queue_policy_attachment" {
-  queue_url = aws_sqs_queue.order_analytics_queue.id
-  policy_arn = aws_sqs_queue_policy.order_analytics_queue_policy.arn
 }
