@@ -41,6 +41,12 @@ resource "aws_iam_role_policy_attachment" "order_place_event" {
   role       = aws_iam_role.order_place_event.name
 }
 
+# attaching the policy to the order processing event to access the DynamoDB table
+resource "aws_iam_role_policy_attachment" "order_processing_event" {
+  policy_arn = aws_iam_policy.AWSLambdaDynamoDBPolicy.arn
+  role       = aws_iam_role.order_processing_event.name
+}
+
 # allow api gateway to invoke the lambda function
 resource "aws_lambda_permission" "allow_api_gateway" {
   statement_id  = "AllowAPIGateway"
