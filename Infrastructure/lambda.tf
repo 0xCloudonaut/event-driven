@@ -1,7 +1,7 @@
 locals {
-  place_order_zip_path   = "${path.module}/../place_order.zip"
-  process_order_zip_path = "${path.module}/../process_order.zip"
-  analytics_zip_path     = "${path.module}/../analytics.zip"
+  place_order_zip_path   = "${path.module}/${var.place_order_zip_path}"
+  process_order_zip_path = "${path.module}/${var.process_order_zip_path}"
+  analytics_zip_path     = "${path.module}/${var.analytics_zip_path}"
 }
 
 data "aws_iam_policy_document" "lambda_assume_role" {
@@ -46,8 +46,8 @@ resource "aws_iam_role_policy" "order_place_publish_policy" {
 }
 
 resource "aws_lambda_function" "order_place_event" {
-  function_name = "place-order"
-  runtime       = "python3.11"
+  function_name = var.place_order_function_name
+  runtime       = var.lambda_runtime
   role          = aws_iam_role.order_place_event.arn
   handler       = "place_order.lambda_handler"
   timeout       = 30
@@ -88,8 +88,8 @@ resource "aws_iam_role_policy_attachment" "order_analytics_sqs_execution" {
 }
 
 resource "aws_lambda_function" "order_analytics_event" {
-  function_name = "analytics"
-  runtime       = "python3.11"
+  function_name = var.analytics_function_name
+  runtime       = var.lambda_runtime
   role          = aws_iam_role.order_analytics_event.arn
   handler       = "analytics.lambda_handler"
   timeout       = 60
@@ -141,8 +141,8 @@ resource "aws_iam_role_policy" "order_processing_dynamodb_policy" {
 }
 
 resource "aws_lambda_function" "order_processing_event" {
-  function_name = "process-order"
-  runtime       = "python3.11"
+  function_name = var.process_order_function_name
+  runtime       = var.lambda_runtime
   role          = aws_iam_role.order_processing_event.arn
   handler       = "process_order.lambda_handler"
   timeout       = 60

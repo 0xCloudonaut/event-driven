@@ -1,6 +1,6 @@
 # create a dynamo db for storing orders with partition key as order id and sort key as creation timestamp
 resource "aws_dynamodb_table" "orders" {
-  name         = "orders"
+  name         = var.dynamodb_table_name
   billing_mode = "PAY_PER_REQUEST"
 
   attribute {
@@ -17,6 +17,6 @@ resource "aws_dynamodb_table" "orders" {
   range_key = "created_at"
 
   tags = {
-    Name = "orders"
+    Name = var.dynamodb_table_name
   }
 }

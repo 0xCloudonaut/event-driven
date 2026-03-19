@@ -1,6 +1,6 @@
 # create an api gateway with post method for order placing
 resource "aws_api_gateway_rest_api" "order_place_api" {
-  name        = "order_place_api"
+  name        = var.api_gateway_name
   description = "API for placing orders"
 }
 

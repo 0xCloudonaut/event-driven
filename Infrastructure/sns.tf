@@ -1,6 +1,6 @@
 # SNS topic that receives new order events from API Gateway -> Lambda.
 resource "aws_sns_topic" "order_place_topic" {
-  name = "order-place-topic"
+  name = var.sns_topic_name
 }
 
 # Fan out order events to the processing queue.

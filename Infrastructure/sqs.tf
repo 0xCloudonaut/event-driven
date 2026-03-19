@@ -1,12 +1,12 @@
 ############################## Order Processing Queue ##############################
 
 resource "aws_sqs_queue" "order_processing_dlq" {
-  name                      = "order-processing-dlq"
+  name                      = var.order_processing_dlq_name
   message_retention_seconds = 1209600
 }
 
 resource "aws_sqs_queue" "order_processing_main" {
-  name                       = "order-processing-queue"
+  name                       = var.order_processing_queue_name
   message_retention_seconds  = 86400
   visibility_timeout_seconds = aws_lambda_function.order_processing_event.timeout * 6
 
@@ -43,12 +43,12 @@ resource "aws_sqs_queue_policy" "order_processing_main_policy" {
 ############################## Analytics Queue ##############################
 
 resource "aws_sqs_queue" "order_analytics_dlq" {
-  name                      = "analytics-dlq"
+  name                      = var.analytics_dlq_name
   message_retention_seconds = 1209600
 }
 
 resource "aws_sqs_queue" "order_analytics_main" {
-  name                       = "analytics-queue"
+  name                       = var.analytics_queue_name
   message_retention_seconds  = 86400
   visibility_timeout_seconds = aws_lambda_function.order_analytics_event.timeout * 6
 
