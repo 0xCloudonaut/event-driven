@@ -1,160 +1,166 @@
-//////////////////// Lambda Event for Order Placing //////////////////////
+locals {
+  place_order_zip_path   = "${path.module}/../place_order.zip"
+  process_order_zip_path = "${path.module}/../process_order.zip"
+  analytics_zip_path     = "${path.module}/../analytics.zip"
+}
 
-# creating lambda function for creating event of order place
-resource "aws_lambda_function" "order_place_event" {
-  function_name = "order_place_event"
-  runtime      = "python3.8"
-  role        = aws_iam_role.lambda_exec.arn
-  handler     = "lambda_function.lambda_handler"
+data "aws_iam_policy_document" "lambda_assume_role" {
+  statement {
+    effect = "Allow"
 
-  source_code_hash = filebase64sha256("lambda_function_order_place.zip")
-
-  environment {
-    variables = {
-      foo = "bar"
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
     }
+
+    actions = ["sts:AssumeRole"]
   }
 }
 
-# creating a role for the order placing event
-resource "aws_iam_role" "order_place_event" {
-  name = "order_place_event_role"
+#################### Place Order Lambda ####################
 
-  assume_role_policy = jsonencode({
+resource "aws_iam_role" "order_place_event" {
+  name               = "order-place-event-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "order_place_basic_execution" {
+  role       = aws_iam_role.order_place_event.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "order_place_publish_policy" {
+  name = "order-place-publish-policy"
+  role = aws_iam_role.order_place_event.id
+
+  policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Action    = "sts:AssumeRole"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Effect    = "Allow"
-        Sid       = ""
+        Effect   = "Allow"
+        Action   = ["sns:Publish"]
+        Resource = aws_sns_topic.order_place_topic.arn
       }
     ]
   })
 }
 
-# attaching the policy to the order placing event to push the message to the SNS
-resource "aws_iam_role_policy_attachment" "order_place_event" {
-  policy_arn = aws_iam_policy.AWSLambdaSNSPublishPolicy.arn
-  role       = aws_iam_role.order_place_event.name
+resource "aws_lambda_function" "order_place_event" {
+  function_name = "place-order"
+  runtime       = "python3.11"
+  role          = aws_iam_role.order_place_event.arn
+  handler       = "place_order.lambda_handler"
+  timeout       = 30
+  filename      = local.place_order_zip_path
+
+  source_code_hash = filebase64sha256(local.place_order_zip_path)
+
+  environment {
+    variables = {
+      SNS_TOPIC_ARN = aws_sns_topic.order_place_topic.arn
+    }
+  }
 }
 
-# attaching the policy to the order processing event to access the DynamoDB table
-resource "aws_iam_role_policy_attachment" "order_processing_event" {
-  policy_arn = aws_iam_policy.AWSLambdaDynamoDBPolicy.arn
-  role       = aws_iam_role.order_processing_event.name
-}
-
-# allow api gateway to invoke the lambda function
 resource "aws_lambda_permission" "allow_api_gateway" {
-  statement_id  = "AllowAPIGateway"
+  statement_id  = "AllowAPIGatewayInvokePlaceOrder"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.order_place_event.function_name
   principal     = "apigateway.amazonaws.com"
-
-  # The source ARN is the ARN of the API Gateway method
-  source_arn = "${aws_api_gateway_rest_api.order_place_api.execution_arn}/*/*"
+  source_arn    = "${aws_api_gateway_rest_api.order_place_api.execution_arn}/*/POST/order"
 }
 
-//////////////////// Lambda Event for Order Analytics //////////////////////
+#################### Analytics Lambda ####################
 
-# creating lambda function for creating event of order analytics
-resource "aws_lambda_function" "order_analytics_event" {
-  function_name = "order_analytics_event"
-  runtime      = "python3.8"
-  role        = aws_iam_role.lambda_exec.arn
-  handler     = "lambda_function.lambda_handler"
-  timeout     = 60
-
-  source_code_hash = filebase64sha256("lambda_function_order_analytics.zip")
-
-  environment {
-    variables = {
-      foo = "bar"
-    }
-  }
-}
-
-# create event source mapping for order_analytics_event
-resource "aws_lambda_event_source_mapping" "order_analytics_event" {
-  event_source_arn = aws_sqs_queue.order_analytics_queue.arn
-  function_name    = aws_lambda_function.order_analytics_event.function_name
-  enabled         = true
-}
-
-# create AWSLambdaSQSQueueExecutionRole for order_analytics_event to poll and delete from order_analytics_queue
 resource "aws_iam_role" "order_analytics_event" {
-  name = "order_analytics_event_role"
+  name               = "order-analytics-event-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
 
-  assume_role_policy = jsonencode({
+resource "aws_iam_role_policy_attachment" "order_analytics_basic_execution" {
+  role       = aws_iam_role.order_analytics_event.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "order_analytics_sqs_execution" {
+  role       = aws_iam_role.order_analytics_event.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
+}
+
+resource "aws_lambda_function" "order_analytics_event" {
+  function_name = "analytics"
+  runtime       = "python3.11"
+  role          = aws_iam_role.order_analytics_event.arn
+  handler       = "analytics.lambda_handler"
+  timeout       = 60
+  filename      = local.analytics_zip_path
+
+  source_code_hash = filebase64sha256(local.analytics_zip_path)
+}
+
+resource "aws_lambda_event_source_mapping" "order_analytics_event" {
+  event_source_arn = aws_sqs_queue.order_analytics_main.arn
+  function_name    = aws_lambda_function.order_analytics_event.arn
+  enabled          = true
+  batch_size       = 10
+}
+
+#################### Process Order Lambda ####################
+
+resource "aws_iam_role" "order_processing_event" {
+  name               = "order-processing-event-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "order_processing_basic_execution" {
+  role       = aws_iam_role.order_processing_event.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "order_processing_sqs_execution" {
+  role       = aws_iam_role.order_processing_event.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole"
+}
+
+resource "aws_iam_role_policy" "order_processing_dynamodb_policy" {
+  name = "order-processing-dynamodb-policy"
+  role = aws_iam_role.order_processing_event.id
+
+  policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Action    = "sts:AssumeRole"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Effect    = "Allow"
-        Sid       = ""
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem"
+        ]
+        Resource = aws_dynamodb_table.orders.arn
       }
     ]
   })
 }
 
-#attach policy AWSLambdaSQSQueueExecutionRole to the order_analytics_event role
-resource "aws_iam_role_policy_attachment" "order_analytics_event" {
-  policy_arn = aws_iam_policy.AWSLambdaSQSQueueExecutionRole.arn
-  role       = aws_iam_role.order_analytics_event.name
-}
-
-//////////////////// Lambda Event for Order Processing //////////////////////
-
-# create lambda function for processing order events
 resource "aws_lambda_function" "order_processing_event" {
-  function_name = "order_processing_event"
-  runtime      = "python3.8"
-  role        = aws_iam_role.lambda_exec.arn
-  handler     = "lambda_function.lambda_handler"
-  timeout     = 60
-  source_code_hash = filebase64sha256("lambda_function_order_processing.zip")
+  function_name = "process-order"
+  runtime       = "python3.11"
+  role          = aws_iam_role.order_processing_event.arn
+  handler       = "process_order.lambda_handler"
+  timeout       = 60
+  filename      = local.process_order_zip_path
+
+  source_code_hash = filebase64sha256(local.process_order_zip_path)
 
   environment {
     variables = {
-      foo = "bar"
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.orders.name
     }
   }
 }
 
-# create event source mapping for order_processing_event
 resource "aws_lambda_event_source_mapping" "order_processing_event" {
-  event_source_arn = aws_sqs_queue.order_processing_queue.arn
-  function_name    = aws_lambda_function.order_processing_event.function_name
-  enabled         = true
-}
-
-# create AWSLambdaSQSQueueExecutionRole for order_processing_event to poll and delete from order_processing_queue
-resource "aws_iam_role" "order_processing_event" {
-  name = "order_processing_event_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action    = "sts:AssumeRole"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Effect    = "Allow"
-        Sid       = ""
-      }
-    ]
-  })
-}
-
-#attach policy AWSLambdaSQSQueueExecutionRole to the order_processing_event role
-resource "aws_iam_role_policy_attachment" "order_processing_event" {
-  policy_arn = aws_iam_policy.AWSLambdaSQSQueueExecutionRole.arn
-  role       = aws_iam_role.order_processing_event.name
+  event_source_arn        = aws_sqs_queue.order_processing_main.arn
+  function_name           = aws_lambda_function.order_processing_event.arn
+  enabled                 = true
+  batch_size              = 10
+  function_response_types = ["ReportBatchItemFailures"]
 }

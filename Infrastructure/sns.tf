@@ -1,18 +1,18 @@
-# creating standard SNS topics for order placing event
+# SNS topic that receives new order events from API Gateway -> Lambda.
 resource "aws_sns_topic" "order_place_topic" {
-  name = "order_place_topic"
+  name = "order-place-topic"
 }
 
-# Creating an sns subscription for order processing queue
+# Fan out order events to the processing queue.
 resource "aws_sns_topic_subscription" "order_processing_queue_subscription" {
   topic_arn = aws_sns_topic.order_place_topic.arn
   protocol  = "sqs"
-  endpoint  = aws_sqs_queue.order_processing_queue.arn
+  endpoint  = aws_sqs_queue.order_processing_main.arn
 }
 
-# creating an sns subscription for order analytics queue
+# Fan out the same order events to the analytics queue.
 resource "aws_sns_topic_subscription" "order_analytics_queue_subscription" {
   topic_arn = aws_sns_topic.order_place_topic.arn
   protocol  = "sqs"
-  endpoint  = aws_sqs_queue.order_analytics_queue.arn
+  endpoint  = aws_sqs_queue.order_analytics_main.arn
 }
