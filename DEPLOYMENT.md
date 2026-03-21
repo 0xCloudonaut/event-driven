@@ -40,6 +40,34 @@ If you keep the files inside a `Scripts/` package in your deployment artifact, u
 
 ## Packaging locally
 
+The quickest way to build deployment artifacts is with the repository `Makefile`:
+
+```bash
+make package
+```
+
+You can also package individual functions:
+
+```bash
+make package-place-order
+make package-process-order
+make package-analytics
+```
+
+This produces:
+
+- `place_order.zip`
+- `process_order.zip`
+- `analytics.zip`
+
+If you need to remove generated artifacts:
+
+```bash
+make clean
+```
+
+The `Makefile` uses the same packaging approach shown below.
+
 Create one deployment artifact per Lambda so each function ships only what it needs.
 
 Example for `place_order`:
