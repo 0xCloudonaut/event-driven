@@ -13,9 +13,15 @@ variable "vpc_cidr" {
 variable "azs" {
   description = "List of availability zones for the VPC."
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  default     = ["us-east-1a", "us-east-1b"]
   
 }
+
+variable "key_name" {
+    description = "Name of the EC2 key pair to attach to worker nodes (leave empty to not set)"
+    type        = string
+    default     = ""
+  }
 
 variable "public_subnet_cidr" {
   description = "CIDR block for the public subnet."
