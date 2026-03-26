@@ -13,15 +13,8 @@ variable "vpc_cidr" {
 variable "azs" {
   description = "List of availability zones for the VPC."
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
-  
+  default     = ["us-east-1a", "us-east-1b"]  
 }
-
-variable "key_name" {
-    description = "Name of the EC2 key pair to attach to worker nodes (leave empty to not set)"
-    type        = string
-    default     = ""
-  }
 
 variable "public_subnet_cidr" {
   description = "CIDR block for the public subnet."
@@ -41,58 +34,46 @@ variable "lambda_runtime" {
   default     = "python3.11"
 }
 
-variable "place_order_function_name" {
-  description = "Lambda function name for the API-facing order publisher."
+variable "inventory_management_zip_path" {
+  description = "Path to the packaged deployment artifact for the inventory management Lambda."
   type        = string
-  default     = "place-order"
+  default     = "../inventory_management.zip"
 }
 
-variable "process_order_function_name" {
-  description = "Lambda function name for the DynamoDB writer."
+variable "process_payment_zip_path" {
+  description = "Path to the packaged deployment artifact for the process-payment Lambda."
   type        = string
-  default     = "process-order"
+  default     = "../process_payment.zip"
 }
 
-variable "analytics_function_name" {
-  description = "Lambda function name for the analytics processor."
+variable "notification_zip_path" {
+  description = "Path to the packaged deployment artifact for the notification Lambda."
   type        = string
-  default     = "analytics"
+  default     = "../notification.zip"
 }
 
-variable "place_order_zip_path" {
-  description = "Path to the packaged deployment artifact for the place-order Lambda."
-  type        = string
-  default     = "../place_order.zip"
-}
-
-variable "process_order_zip_path" {
-  description = "Path to the packaged deployment artifact for the process-order Lambda."
-  type        = string
-  default     = "../process_order.zip"
-}
-
-variable "analytics_zip_path" {
-  description = "Path to the packaged deployment artifact for the analytics Lambda."
-  type        = string
-  default     = "../analytics.zip"
-}
-
-variable "sns_topic_name" {
+variable "sns_order_place_topic_name" {
   description = "SNS topic name for new order events."
   type        = string
   default     = "order-place-topic"
 }
 
-variable "order_processing_queue_name" {
-  description = "Primary SQS queue name for order processing."
+variable "payment_processing_topic_name" {
+  description = "SNS topic name for payment processing events."
   type        = string
-  default     = "order-processing-queue"
+  default     = "payment-processing-topic"
 }
 
-variable "order_processing_dlq_name" {
-  description = "Dead-letter queue name for order processing."
+variable "payment_processing_queue_name" {
+  description = "Primary SQS queue name for payment processing."
   type        = string
-  default     = "order-processing-dlq"
+  default     = "payment-processing-queue"
+}
+
+variable "payment_processing_dlq_name" {
+  description = "Dead-letter queue name for payment processing."
+  type        = string
+  default     = "payment-processing-dlq"
 }
 
 variable "analytics_queue_name" {

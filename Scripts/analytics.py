@@ -8,7 +8,6 @@ from typing import Any
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-
 def log_event(level: int, message: str, **fields: Any) -> None:
     payload = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
