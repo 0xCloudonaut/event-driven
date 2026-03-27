@@ -1,5 +1,5 @@
 # Python
-__pycache__/
+./Scripts/__pycache__/
 *.pyc
 
 # Terraform
@@ -11,4 +11,4 @@ __pycache__/
 .DS_Store
 
 # Env files
-.env
+.env    
