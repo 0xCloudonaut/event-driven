@@ -1,22 +1,28 @@
-# Create a dynamo db table for keeping track of inventory
-resource "aws_dynamodb_table" "inventory" {
-  name         = var.dynamodb_table_name
-  billing_mode = "PAY_PER_REQUEST"
+// Creating a dynamo db table for keeping track of inventory
 
-  attribute {
-    name = "product_id"
-    type = "S"
-  }
+module "dynamodb_table" {
+  source   = "terraform-aws-modules/dynamodb-table/aws"
 
-  attribute {
-    name = "warehouse_id"
-    type = "S"
-  }
+  name     = "inventory-table"
+  hash_key = "product_id"
 
-  hash_key  = "product_id"
-  range_key = "warehouse_id"
+  /*
+    The product_id is the primary key
+    The stock is the integer attribute to keep track of the inventory
+  */
+  attributes = [
+    {
+      name = "product_id"
+      type = "S"
+    },
+    {
+      name = "stock"
+      type = "N"
+    }
+  ]
 
   tags = {
-    Name = var.dynamodb_table_name
+    Terraform   = "true"
+    Environment = "staging"
   }
 }
