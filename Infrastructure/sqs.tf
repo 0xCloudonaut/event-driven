@@ -8,7 +8,7 @@ resource "aws_sqs_queue" "payment_processing_dlq" {
 resource "aws_sqs_queue" "payment_processing_main" {
   name                       = var.payment_processing_queue_name
   message_retention_seconds  = 86400
-  visibility_timeout_seconds = aws_lambda_function.payment_processing_event.timeout * 6
+  visibility_timeout_seconds = aws_lambda_function.process_payment_lambda.timeout * 6
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.payment_processing_dlq.arn
@@ -43,14 +43,14 @@ resource "aws_sqs_queue_policy" "payment_processing_main_policy" {
 ############################## Inventory Management Queue ##############################
 
 resource "aws_sqs_queue" "inventory_management_dlq" {
-  name                      = var.analytics_dlq_name
+  name                      = var.inventory_management_dlq_name
   message_retention_seconds = 1209600
 }
 
 resource "aws_sqs_queue" "inventory_management_main" {
-  name                       = var.analytics_queue_name
+  name                       = var.inventory_management_main_queue_name
   message_retention_seconds  = 86400
-  visibility_timeout_seconds = aws_lambda_function.order_analytics_event.timeout * 6
+  visibility_timeout_seconds = aws_lambda_function.inventory_management.timeout * 6
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.inventory_management_dlq.arn
@@ -85,14 +85,14 @@ resource "aws_sqs_queue_policy" "inventory_management_main_policy" {
 ############################## Notification Queue ##############################
 
 resource "aws_sqs_queue" "notification_dlq" {
-  name                      = var.analytics_dlq_name
+  name                      = var.notification_dlq_name
   message_retention_seconds = 1209600
 }
 
 resource "aws_sqs_queue" "notification_main" {
-  name                       = var.analytics_queue_name
+  name                       = var.notification_main_queue_name
   message_retention_seconds  = 86400
-  visibility_timeout_seconds = aws_lambda_function.order_analytics_event.timeout * 6
+  visibility_timeout_seconds = aws_lambda_function.notification_lambda.timeout * 6
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.notification_dlq.arn

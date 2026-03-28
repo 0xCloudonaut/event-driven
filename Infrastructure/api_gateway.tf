@@ -2,6 +2,7 @@
 resource "aws_api_gateway_rest_api" "order_place_api" {
   name        = var.api_gateway_name
   description = "API for placing orders"
+  policy      = aws_iam_policy.api_gateway_lambda_invoke.arn
 }
 
 resource "aws_api_gateway_resource" "order" {
@@ -24,5 +25,5 @@ resource "aws_api_gateway_integration" "order_post" {
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.order_place_event.invoke_arn
+  uri                     = aws_lambda_function.process_payment_lambda.invoke_arn
 }

@@ -3,7 +3,7 @@
 module "dynamodb_table" {
   source   = "terraform-aws-modules/dynamodb-table/aws"
 
-  name     = "inventory-table"
+  name     = var.dynamodb_table_name
   hash_key = "product_id"
 
   /*

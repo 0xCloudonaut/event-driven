@@ -76,10 +76,28 @@ variable "payment_processing_dlq_name" {
   default     = "payment-processing-dlq"
 }
 
-variable "analytics_queue_name" {
-  description = "Primary SQS queue name for analytics."
+variable "inventory_management_dlq_name" {
+  description = "Dead-letter queue name for inventory management."
   type        = string
-  default     = "analytics-queue"
+  default     = "inventory-management-dlq"
+}
+
+variable "inventory_management_main_queue_name" {
+  description = "Primary SQS queue name for inventory management."
+  type        = string
+  default     = "inventory-management-queue"
+}
+
+variable "notification_dlq_name" {
+  description = "Dead-letter queue name for notifications."
+  type        = string
+  default     = "notification-dlq"
+}
+
+variable "notification_main_queue_name" {
+  description = "Primary SQS queue name for notifications."
+  type        = string
+  default     = "notification-queue"
 }
 
 variable "analytics_dlq_name" {
@@ -91,7 +109,7 @@ variable "analytics_dlq_name" {
 variable "dynamodb_table_name" {
   description = "DynamoDB table name used to store processed orders."
   type        = string
-  default     = "orders"
+  default     = "inventory-table"
 }
 
 variable "api_gateway_name" {
