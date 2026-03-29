@@ -28,6 +28,17 @@ resource "aws_iam_policy_attachment" "process_payment_lambda_role" {
   policy_arn = aws_iam_policy.sns_publish.arn
 }
 
+# Allowing the API gateway to invoke the process payment lambda function
+resource "aws_lambda_permission" "api_gateway_process_payment" {
+  statement_id  = "AllowAPIGatewayInvokeProcessPayment"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.process_payment_lambda.arn
+  principal     = "apigateway.amazonaws.com"
+
+  # The source ARN is the API Gateway's invoke URL
+  source_arn = "${aws_api_gateway_rest_api.order_place_api.execution_arn}/*/*"
+}
+
 ///////////////////////////////////// Notification Lambda function /////////////////////////////////////
 
 resource "aws_lambda_function" "notification_lambda" {

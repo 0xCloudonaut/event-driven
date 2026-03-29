@@ -27,3 +27,30 @@ resource "aws_api_gateway_integration" "order_post" {
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.process_payment_lambda.invoke_arn
 }
+
+resource "aws_api_gateway_deployment" "order_place_api" {
+  rest_api_id = aws_api_gateway_rest_api.order_place_api.id
+
+  depends_on = [
+    aws_api_gateway_integration.order_post
+  ]
+
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.order.id,
+      aws_api_gateway_method.order_post.id,
+      aws_api_gateway_integration.order_post.id
+    ]))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_api_gateway_stage" "order_place_api" {
+  rest_api_id = aws_api_gateway_rest_api.order_place_api.id
+  stage_name  = "prod"
+
+  deployment_id = aws_api_gateway_deployment.order_place_api.id
+}
