@@ -99,3 +99,9 @@ variable "api_gateway_name" {
   type        = string
   default     = "order_place_api"
 }
+
+variable "ses_email_identity" {
+  description = "Email identity for SES to send notifications."
+  type        = string
+  default     = "12345atharva@gmail.com"
+}
