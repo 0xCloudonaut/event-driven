@@ -58,24 +58,6 @@ variable "sns_order_place_topic_name" {
   default     = "order-place-topic"
 }
 
-variable "payment_processing_topic_name" {
-  description = "SNS topic name for payment processing events."
-  type        = string
-  default     = "payment-processing-topic"
-}
-
-variable "payment_processing_queue_name" {
-  description = "Primary SQS queue name for payment processing."
-  type        = string
-  default     = "payment-processing-queue"
-}
-
-variable "payment_processing_dlq_name" {
-  description = "Dead-letter queue name for payment processing."
-  type        = string
-  default     = "payment-processing-dlq"
-}
-
 variable "inventory_management_dlq_name" {
   description = "Dead-letter queue name for inventory management."
   type        = string
