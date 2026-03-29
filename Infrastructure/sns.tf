@@ -1,17 +1,3 @@
-//////////////////////// Payment-Processing Topic ////////////////////////
-
-# SNS payment processing topic.
-resource "aws_sns_topic" "payment_processing_topic" {
-  name = var.payment_processing_topic_name
-}
-
-# Push payment messages to payment processing queue
-resource "aws_sns_topic_subscription" "payment_processing_queue_subscription" {
-  topic_arn = aws_sns_topic.payment_processing_topic.arn
-  protocol  = "sqs"
-  endpoint  = aws_sqs_queue.payment_processing_main.arn
-}
-
 //////////////////////// Order-Placement Topic ////////////////////////
 
 # SNS topic that receives new order events from API Gateway -> Lambda.
@@ -19,6 +5,7 @@ resource "aws_sns_topic" "order_place_topic" {
   name = var.sns_order_place_topic_name
 }
 
+ // Event source mapping and fan out to the inventory management function
 # Fan out order events to the processing queue.
 resource "aws_sns_topic_subscription" "inventory_management_queue_subscription" {
   topic_arn = aws_sns_topic.order_place_topic.arn
@@ -32,6 +19,7 @@ resource "aws_lambda_event_source_mapping" "inventory_management_event" {
   function_name    = aws_lambda_function.inventory_management.arn
 }
 
+  // Event source mapping and fan out to the notification function
 # Fan out the same order events to the analytics queue.
 resource "aws_sns_topic_subscription" "notification_main_queue_subscription" {
   topic_arn = aws_sns_topic.order_place_topic.arn
