@@ -68,7 +68,7 @@ data "aws_iam_policy_document" "process_payment_lambda_role_policy_document" {
 resource "aws_iam_policy" "process_payment_lambda_role_policy" {
   name        = "process_payment_lambda_role_policy"
   description = "Policy for process payment lambda role"
-  policy      = data.aws_iam_resource_policy.process_payment_lambda_role_policy_document.json
+  policy      = data.aws_iam_policy_document.process_payment_lambda_role_policy_document.json
 }
 
 # Attaching the permission to fetch data from the DynamoDB table to validate inventory and to publish to SNS
@@ -135,7 +135,7 @@ data "aws_iam_policy_document" "notification_lambda_role_policy_document" {
       "sqs:GetQueueAttributes"
     ]
     resources = [
-      aws_sqs_queue.notification_queue.arn
+      aws_sqs_queue.notification_main.arn
     ]
   }
 }
@@ -205,7 +205,7 @@ data "aws_iam_policy_document" "inventory_management_lambda_role_policy_document
       "sqs:GetQueueAttributes"
     ]
     resources = [
-      aws_sqs_queue.inventory_management_queue.arn
+      aws_sqs_queue.inventory_management_main.arn
     ]
   }
 }
