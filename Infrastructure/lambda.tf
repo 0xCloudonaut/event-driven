@@ -105,11 +105,11 @@ resource "aws_lambda_function" "notification_lambda" {
   filename   = local.notification_zip_path
 
   environment {
-  variables = {
-    QUEUE_URL = aws_sqs_queue.notification_main.url
-    SENDER_EMAIL = var.ses_email_identity
+    variables = {
+      QUEUE_URL   = aws_sqs_queue.notification_main.url
+      SENDER_EMAIL = var.ses_email_identity
+    }
   }
-}
 }
 
 # Creating a role for notification_lambda lambda function
@@ -185,6 +185,7 @@ resource "aws_iam_role" "inventory_management_lambda_role" {
 
 # creating policy document for inventory management lambda role to access DynamoDB and SQS
 data "aws_iam_policy_document" "inventory_management_lambda_role_policy_document" {
+  // Allow access to DynamoDB
   statement {
     actions = [
       "dynamodb:GetItem",
@@ -197,6 +198,7 @@ data "aws_iam_policy_document" "inventory_management_lambda_role_policy_document
     ]
   }
 
+  // Adding permissions for SQS
   statement {
     actions = [
       "sqs:ReceiveMessage",
