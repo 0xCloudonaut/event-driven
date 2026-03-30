@@ -11,12 +11,15 @@ resource "aws_sns_topic_subscription" "inventory_management_queue_subscription" 
   topic_arn = aws_sns_topic.order_place_topic.arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.inventory_management_main.arn
+  depends_on = [aws_sqs_queue_policy.inventory_management_main_queue_policy]
+  raw_message_delivery = true
 }
 
 # Creating aws lambda event source mapping for inventory management function
 resource "aws_lambda_event_source_mapping" "inventory_management_event" {
-  event_source_arn = aws_sns_topic.order_place_topic.arn
+  event_source_arn = aws_sqs_queue.inventory_management_main.arn
   function_name    = aws_lambda_function.inventory_management.arn
+  batch_size       = 10
 }
 
   // Event source mapping and fan out to the notification function
@@ -25,10 +28,61 @@ resource "aws_sns_topic_subscription" "notification_main_queue_subscription" {
   topic_arn = aws_sns_topic.order_place_topic.arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.notification_main.arn
+  depends_on = [aws_sqs_queue_policy.notification_main_queue_policy]
+  raw_message_delivery = true
 }
 
 # Creating aws lambda event source mapping for notification function
 resource "aws_lambda_event_source_mapping" "notification_event" {
-  event_source_arn = aws_sns_topic.order_place_topic.arn
+  event_source_arn = aws_sqs_queue.notification_main.arn
   function_name    = aws_lambda_function.notification_lambda.arn
+  batch_size       = 10
+}
+
+// Allow sns to push messages to the SQS notification queue
+resource "aws_sqs_queue_policy" "notification_main_queue_policy" {
+  queue_url = aws_sqs_queue.notification_main.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "sns.amazonaws.com"
+        }
+        Action = "SQS:SendMessage"
+        Resource = aws_sqs_queue.notification_main.arn
+        Condition = {
+          "ArnEquals" = {
+            "aws:SourceArn" = aws_sns_topic.order_place_topic.arn
+          }
+        }
+      }
+    ]
+  })
+}
+
+// Allow sns to push messages to the SQS inventory management queue
+resource "aws_sqs_queue_policy" "inventory_management_main_queue_policy" {
+  queue_url = aws_sqs_queue.inventory_management_main.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "sns.amazonaws.com"
+        }
+        Action = "SQS:SendMessage"
+        Resource = aws_sqs_queue.inventory_management_main.arn
+        Condition = {
+          "ArnEquals" = {
+            "aws:SourceArn" = aws_sns_topic.order_place_topic.arn
+          }
+        }
+      }
+    ]
+  })
 }

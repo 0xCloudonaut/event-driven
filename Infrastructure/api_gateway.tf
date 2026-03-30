@@ -5,6 +5,7 @@ resource "aws_api_gateway_rest_api" "order_place_api" {
   policy      = aws_iam_policy.api_gateway_lambda_invoke.arn
 }
 
+# Create a resource for the order_place_api as order 
 resource "aws_api_gateway_resource" "order" {
   rest_api_id = aws_api_gateway_rest_api.order_place_api.id
   parent_id   = aws_api_gateway_rest_api.order_place_api.root_resource_id
@@ -28,6 +29,7 @@ resource "aws_api_gateway_integration" "order_post" {
   uri                     = aws_lambda_function.process_payment_lambda.invoke_arn
 }
 
+# Creating deployment for the api gateway, configuring triggers for redeployment
 resource "aws_api_gateway_deployment" "order_place_api" {
   rest_api_id = aws_api_gateway_rest_api.order_place_api.id
 
@@ -48,6 +50,7 @@ resource "aws_api_gateway_deployment" "order_place_api" {
   }
 }
 
+// Staging got the api-gateway
 resource "aws_api_gateway_stage" "order_place_api" {
   rest_api_id = aws_api_gateway_rest_api.order_place_api.id
   stage_name  = "prod"
