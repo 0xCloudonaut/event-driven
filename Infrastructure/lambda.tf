@@ -21,17 +21,17 @@ data "aws_iam_policy_document" "lambda_assume_role_policy" {
 resource "aws_lambda_function" "process_payment_lambda" {
   function_name = "process_payment_lambda"
   runtime      = var.lambda_runtime
-  handler     = "process_payment_lambda.handler"
+  handler     = "payment_lambda.lambda_handler"
   role       = aws_iam_role.process_payment_lambda_role.arn
   source_code_hash = filebase64sha256(local.process_payment_zip_path)
   filename   = local.process_payment_zip_path
 
   environment {
-  variables = {
-    SNS_TOPIC_ARN = aws_sns_topic.order_place_topic.arn
-    TABLE_NAME    = aws_dynamodb_table.dynamodb_table.name
+    variables = {
+      ORDER_RESULTS_TOPIC_ARN = aws_sns_topic.order_place_topic.arn
+      INVENTORY_TABLE         = aws_dynamodb_table.dynamodb_table.name
+    }
   }
-}
 }
 
 # Creating role for lambda and attaching sns publish policy
@@ -106,7 +106,6 @@ resource "aws_lambda_function" "notification_lambda" {
 
   environment {
     variables = {
-      QUEUE_URL   = aws_sqs_queue.notification_main.url
       SENDER_EMAIL = var.ses_email_identity
     }
   }
@@ -165,14 +164,14 @@ resource "aws_iam_role_policy_attachment" "notification_lambda_role_basic_execut
 resource "aws_lambda_function" "inventory_management" {
   function_name = "inventory_management"
   runtime      = var.lambda_runtime
-  handler     = "inventory_management.handler"
+  handler     = "inventory_lambda.lambda_handler"
   role       = aws_iam_role.inventory_management_lambda_role.arn
   source_code_hash = filebase64sha256(local.inventory_management_zip_path)
   filename   = local.inventory_management_zip_path
 
   environment {
     variables = {
-      TABLE_NAME = aws_dynamodb_table.dynamodb_table.name
+      INVENTORY_TABLE = aws_dynamodb_table.dynamodb_table.name
     }
   }
 }

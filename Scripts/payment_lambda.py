@@ -1,6 +1,9 @@
+import base64
 import json
 import os
+import uuid
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 
 import boto3
 
@@ -11,7 +14,7 @@ ORDER_RESULTS_TOPIC_ARN = os.environ["ORDER_RESULTS_TOPIC_ARN"]
 inventory_table = dynamodb.Table(os.environ["INVENTORY_TABLE"])
 
 # Best-effort idempotency for duplicate deliveries within a warm Lambda runtime.
-PROCESSED_ORDER_IDS = set()
+PROCESSED_REQUEST_IDS = set()
 
 
 def log(level, message, **fields):
@@ -22,6 +25,95 @@ def log(level, message, **fields):
         **fields,
     }
     print(json.dumps(entry))
+
+
+def response(status_code, body):
+    return {
+        "statusCode": status_code,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(body),
+    }
+
+
+def parse_api_gateway_body(event):
+    if not isinstance(event, dict):
+        raise ValueError("Event must be a JSON object")
+
+    if "body" not in event:
+        return event
+
+    raw_body = event["body"]
+    if raw_body is None:
+        raise ValueError("Request body is required")
+
+    if event.get("isBase64Encoded"):
+        raw_body = base64.b64decode(raw_body).decode("utf-8")
+
+    if isinstance(raw_body, str):
+        if not raw_body.strip():
+            raise ValueError("Request body is required")
+        return json.loads(raw_body)
+
+    if isinstance(raw_body, dict):
+        return raw_body
+
+    raise ValueError("Unsupported request body format")
+
+
+def normalize_order_request(payload):
+    if not isinstance(payload, dict):
+        raise ValueError("Request body must be a JSON object")
+
+    product_id = str(payload.get("product_id", "")).strip()
+    email = str(payload.get("email", "")).strip()
+
+    if not product_id:
+        raise ValueError("product_id is required")
+    if "@" not in email:
+        raise ValueError("email must be a valid address")
+
+    try:
+        quantity = int(payload.get("quantity"))
+    except (TypeError, ValueError):
+        raise ValueError("quantity must be an integer greater than zero") from None
+
+    if quantity <= 0:
+        raise ValueError("quantity must be an integer greater than zero")
+
+    if payload.get("amount") is None:
+        raise ValueError("amount is required")
+
+    try:
+        amount = Decimal(str(payload.get("amount")))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError("amount must be a valid number") from None
+
+    if amount <= 0:
+        raise ValueError("amount must be greater than zero")
+
+    request_id = payload.get("request_id")
+    if request_id is not None:
+        request_id = str(request_id).strip()
+        if not request_id:
+            raise ValueError("request_id cannot be empty when provided")
+
+    return {
+        "request_id": request_id,
+        "product_id": product_id,
+        "quantity": quantity,
+        "amount": float(amount),
+        "email": email,
+    }
+
+
+def build_order_event(order_request):
+    return {
+        "event_id": order_request.get("request_id") or str(uuid.uuid4()),
+        "event_type": "OrderCreated",
+        "order_id": f"ord-{uuid.uuid4().hex[:12]}",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "payload": order_request,
+    }
 
 
 def build_result_event(event, success, reason=None):
@@ -37,10 +129,10 @@ def build_result_event(event, success, reason=None):
     return result_event
 
 
-def is_duplicate(order_id):
-    if order_id in PROCESSED_ORDER_IDS:
+def is_duplicate(request_id):
+    if request_id in PROCESSED_REQUEST_IDS:
         return True
-    PROCESSED_ORDER_IDS.add(order_id)
+    PROCESSED_REQUEST_IDS.add(request_id)
     return False
 
 
@@ -49,88 +141,87 @@ def get_inventory_item(product_id):
     return response.get("Item")
 
 
-def validate_order_event(event):
-    payload = event.get("payload", {})
-    if not event.get("order_id"):
-        raise ValueError("Missing order_id")
-    if not payload.get("product_id"):
-        raise ValueError("Missing product_id in payload")
-    if payload.get("quantity", 0) <= 0:
-        raise ValueError("Quantity must be greater than zero")
-    if payload.get("amount") is None:
-        raise ValueError("Missing amount in payload")
-
-
-def process_record(record):
-    event = json.loads(record["body"])
-    order_id = event.get("order_id")
-
-    log(
-        "INFO",
-        "Received payment request",
-        order_id=order_id,
-        event_type=event.get("event_type"),
-    )
-
-    if event.get("event_type") != "OrderCreated":
-        log("INFO", "Skipping unsupported event type", order_id=order_id, event_type=event.get("event_type"))
-        return
-
-    validate_order_event(event)
-
-    payload = event.get("payload", {})
+def evaluate_payment(order_event):
+    payload = order_event["payload"]
     amount = payload["amount"]
     product_id = payload["product_id"]
     quantity = payload["quantity"]
 
-    log("INFO", "Validated payment request", order_id=order_id, product_id=product_id, quantity=quantity)
-
-    if is_duplicate(order_id):
-        log("INFO", "Skipping duplicate payment event", order_id=order_id)
-        return
-
     inventory_item = get_inventory_item(product_id)
     if not inventory_item:
-        success = False
-        reason = "Item is out of stock. Your order could not be placed."
-    else:
-        available_stock = int(inventory_item.get("stock", 0))
-        if available_stock < quantity:
-            success = False
-            reason = "Item is out of stock. Your order could not be placed."
-        elif amount >= 1000:
-            success = False
-            reason = "Payment declined: amount exceeds limit"
-        else:
-            success = True
-            reason = None
+        return False, "Item is out of stock. Your order could not be placed."
 
-    result_event = build_result_event(event, success=success, reason=reason)
+    available_stock = int(inventory_item.get("stock", 0))
+    if available_stock < quantity:
+        return False, "Item is out of stock. Your order could not be placed."
 
+    if amount >= 1000:
+        return False, "Payment declined: amount exceeds limit"
+
+    return True, None
+
+
+def publish_result_event(result_event):
     sns_client.publish(
         TopicArn=ORDER_RESULTS_TOPIC_ARN,
         Subject=result_event["event_type"],
         Message=json.dumps(result_event),
     )
 
-    log(
-        "INFO",
-        "Published payment result",
-        order_id=order_id,
-        result_event_type=result_event["event_type"],
-        reason=reason,
-    )
-
 
 def lambda_handler(event, context):
-    batch_failures = []
+    try:
+        request_payload = parse_api_gateway_body(event)
+        order_request = normalize_order_request(request_payload)
+        order_event = build_order_event(order_request)
 
-    for record in event.get("Records", []):
-        try:
-            process_record(record)
-        except Exception as exc:
-            message_id = record.get("messageId", "unknown")
-            log("ERROR", "Failed to process payment record", message_id=message_id, error=str(exc))
-            batch_failures.append({"itemIdentifier": message_id})
+        log(
+            "INFO",
+            "Received payment request from API Gateway",
+            order_id=order_event["order_id"],
+            product_id=order_request["product_id"],
+            quantity=order_request["quantity"],
+            amount=order_request["amount"],
+        )
 
-    return {"batchItemFailures": batch_failures}
+        if is_duplicate(order_event["event_id"]):
+            log("INFO", "Skipping duplicate payment request", event_id=order_event["event_id"])
+            return response(
+                200,
+                {
+                    "message": "Duplicate payment request ignored",
+                    "order_id": order_event["order_id"],
+                },
+            )
+
+        success, reason = evaluate_payment(order_event)
+        result_event = build_result_event(order_event, success=success, reason=reason)
+        publish_result_event(result_event)
+
+        log(
+            "INFO",
+            "Published payment result",
+            order_id=order_event["order_id"],
+            result_event_type=result_event["event_type"],
+            reason=reason,
+        )
+
+        return response(
+            200,
+            {
+                "message": "Order processed",
+                "order_id": result_event["order_id"],
+                "event_type": result_event["event_type"],
+                "reason": reason,
+            },
+        )
+    except ValueError as exc:
+        log("ERROR", "Invalid API Gateway order request", error=str(exc))
+        return response(400, {"message": str(exc)})
+    except Exception as exc:
+        log("ERROR", "Unexpected payment processing failure", error=str(exc))
+        return response(500, {"message": "Internal server error"})
+
+
+def handler(event, context):
+    return lambda_handler(event, context)

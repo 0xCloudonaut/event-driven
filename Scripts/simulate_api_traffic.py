@@ -43,18 +43,12 @@ def load_inventory_items():
 
 
 def build_order_event(product_id, quantity, amount, email):
-    order_id = f"sim-{uuid.uuid4().hex[:12]}"
     return {
-        "event_id": str(uuid.uuid4()),
-        "event_type": "OrderCreated",
-        "order_id": order_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "payload": {
-            "product_id": product_id,
-            "quantity": quantity,
-            "amount": amount,
-            "email": email,
-        },
+        "request_id": str(uuid.uuid4()),
+        "product_id": product_id,
+        "quantity": quantity,
+        "amount": amount,
+        "email": email,
     }
 
 
@@ -103,8 +97,8 @@ def build_simulation_events(items, email):
 
 
 def post_order(api_gateway_url, payload):
-    # Assumption: the API Gateway order endpoint accepts the same order event shape
-    # that the downstream order-processing flow expects.
+    # The public API accepts a plain order request; the payment Lambda transforms it
+    # into the internal event shape before publishing to SNS.
     http_request = request.Request(
         api_gateway_url,
         data=json.dumps(payload).encode("utf-8"),
@@ -134,10 +128,10 @@ def main():
             "INFO",
             "Sending order to API Gateway",
             scenario=scenario,
-            order_id=payload["order_id"],
-            product_id=payload["payload"]["product_id"],
-            quantity=payload["payload"]["quantity"],
-            amount=payload["payload"]["amount"],
+            request_id=payload["request_id"],
+            product_id=payload["product_id"],
+            quantity=payload["quantity"],
+            amount=payload["amount"],
         )
 
         try:
@@ -146,7 +140,7 @@ def main():
                 "INFO",
                 "API Gateway accepted order request",
                 scenario=scenario,
-                order_id=payload["order_id"],
+                request_id=payload["request_id"],
                 status_code=response["status_code"],
                 response_body=response["body"],
             )
@@ -155,7 +149,7 @@ def main():
                 "ERROR",
                 "Failed to send order to API Gateway",
                 scenario=scenario,
-                order_id=payload["order_id"],
+                request_id=payload["request_id"],
                 error=str(exc),
             )
 

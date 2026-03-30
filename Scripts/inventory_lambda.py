@@ -25,6 +25,16 @@ def get_inventory_item(product_id):
     return response.get("Item")
 
 
+def unwrap_sqs_record_body(record):
+    body = json.loads(record["body"])
+
+    # SQS subscriptions to SNS receive the SNS envelope in the SQS message body.
+    if isinstance(body, dict) and "Message" in body:
+        return json.loads(body["Message"])
+
+    return body
+
+
 def validate_inventory_event(event):
     payload = event.get("payload", {})
     if not event.get("order_id"):
@@ -36,7 +46,7 @@ def validate_inventory_event(event):
 
 
 def process_record(record):
-    event = json.loads(record["body"])
+    event = unwrap_sqs_record_body(record)
     order_id = event.get("order_id")
     event_type = event.get("event_type")
 
@@ -116,3 +126,7 @@ def lambda_handler(event, context):
             batch_failures.append({"itemIdentifier": message_id})
 
     return {"batchItemFailures": batch_failures}
+
+
+def handler(event, context):
+    return lambda_handler(event, context)
