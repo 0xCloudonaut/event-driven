@@ -1,7 +1,7 @@
 locals {
   inventory_management_zip_path = "${path.module}/${var.inventory_management_zip_path}"
-  process_payment_zip_path = "${path.module}/${var.process_payment_zip_path}"
-  notification_zip_path     = "${path.module}/${var.notification_zip_path}"
+  process_payment_zip_path      = "${path.module}/${var.process_payment_zip_path}"
+  notification_zip_path         = "${path.module}/${var.notification_zip_path}"
 }
 
 // Creating a trust policy for lambda functions
@@ -19,17 +19,17 @@ data "aws_iam_policy_document" "lambda_assume_role_policy" {
 ///////////////////////////////////// Payment processing Lambda function /////////////////////////////////////
 
 resource "aws_lambda_function" "process_payment_lambda" {
-  function_name = "process_payment_lambda"
-  runtime      = var.lambda_runtime
-  handler     = "payment_lambda.lambda_handler"
-  role       = aws_iam_role.process_payment_lambda_role.arn
+  function_name    = "process_payment_lambda"
+  runtime          = var.lambda_runtime
+  handler          = "payment_lambda.lambda_handler"
+  role             = aws_iam_role.process_payment_lambda_role.arn
   source_code_hash = filebase64sha256(local.process_payment_zip_path)
-  filename   = local.process_payment_zip_path
+  filename         = local.process_payment_zip_path
 
   environment {
     variables = {
       ORDER_RESULTS_TOPIC_ARN = aws_sns_topic.order_place_topic.arn
-      INVENTORY_TABLE         = aws_dynamodb_table.dynamodb_table.name
+      INVENTORY_TABLE         = module.dynamodb_table.dynamodb_table_id
     }
   }
 }
@@ -49,7 +49,7 @@ data "aws_iam_policy_document" "process_payment_lambda_role_policy_document" {
       "dynamodb:Query"
     ]
     resources = [
-      aws_dynamodb_table.dynamodb_table.arn
+      module.dynamodb_table.dynamodb_table_arn
     ]
   }
 
@@ -73,7 +73,7 @@ resource "aws_iam_policy" "process_payment_lambda_role_policy" {
 
 # Attaching the permission to fetch data from the DynamoDB table to validate inventory and to publish to SNS
 resource "aws_iam_role_policy_attachment" "process_payment_lambda_role_dynamodb" {
-  role      = aws_iam_role.process_payment_lambda_role.name
+  role       = aws_iam_role.process_payment_lambda_role.name
   policy_arn = aws_iam_policy.process_payment_lambda_role_policy.arn
 }
 
@@ -97,12 +97,12 @@ resource "aws_lambda_permission" "api_gateway_process_payment" {
 ///////////////////////////////////// Notification Lambda function /////////////////////////////////////
 
 resource "aws_lambda_function" "notification_lambda" {
-  function_name = "notification_lambda"
-  runtime      = var.lambda_runtime
-  handler     = "notification_lambda.handler"
-  role       = aws_iam_role.notification_lambda_role.arn
+  function_name    = "notification_lambda"
+  runtime          = var.lambda_runtime
+  handler          = "notification_lambda.lambda_handler"
+  role             = aws_iam_role.notification_lambda_role.arn
   source_code_hash = filebase64sha256(local.notification_zip_path)
-  filename   = local.notification_zip_path
+  filename         = local.notification_zip_path
 
   environment {
     variables = {
@@ -162,16 +162,16 @@ resource "aws_iam_role_policy_attachment" "notification_lambda_role_basic_execut
 ///////////////////////////////////// Inventory Management Lambda function /////////////////////////////////////
 
 resource "aws_lambda_function" "inventory_management" {
-  function_name = "inventory_management"
-  runtime      = var.lambda_runtime
-  handler     = "inventory_lambda.lambda_handler"
-  role       = aws_iam_role.inventory_management_lambda_role.arn
+  function_name    = "inventory_management"
+  runtime          = var.lambda_runtime
+  handler          = "inventory_lambda.lambda_handler"
+  role             = aws_iam_role.inventory_management_lambda_role.arn
   source_code_hash = filebase64sha256(local.inventory_management_zip_path)
-  filename   = local.inventory_management_zip_path
+  filename         = local.inventory_management_zip_path
 
   environment {
     variables = {
-      INVENTORY_TABLE = aws_dynamodb_table.dynamodb_table.name
+      INVENTORY_TABLE = module.dynamodb_table.dynamodb_table_id
     }
   }
 }
@@ -193,7 +193,7 @@ data "aws_iam_policy_document" "inventory_management_lambda_role_policy_document
       "dynamodb:DeleteItem"
     ]
     resources = [
-      aws_dynamodb_table.dynamodb_table.arn
+      module.dynamodb_table.dynamodb_table_arn
     ]
   }
 

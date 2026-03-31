@@ -1,12 +1,12 @@
 import json
 import os
 import uuid
-from datetime import datetime, timezone
 from decimal import Decimal
 from urllib import request
 
 import boto3
 
+from common import log
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 API_GATEWAY_URL = os.environ["API_GATEWAY_URL"]
@@ -15,16 +15,6 @@ CUSTOMER_EMAIL = os.getenv("CUSTOMER_EMAIL", "user@example.com")
 
 dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
 inventory_table = dynamodb.Table(INVENTORY_TABLE)
-
-
-def log(level, message, **fields):
-    entry = {
-        "level": level,
-        "message": message,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        **fields,
-    }
-    print(json.dumps(entry))
 
 
 def to_int(value):

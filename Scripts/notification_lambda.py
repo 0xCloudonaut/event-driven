@@ -1,32 +1,11 @@
-import json
 import os
-from datetime import datetime, timezone
 
 import boto3
 
+from common import log, parse_sqs_record_body
 
 ses_client = boto3.client("ses")
 SENDER_EMAIL = os.environ["SENDER_EMAIL"]
-
-# Best-effort idempotency for duplicate deliveries within a warm Lambda runtime.
-PROCESSED_NOTIFICATION_KEYS = set()
-
-
-def log(level, message, **fields):
-    entry = {
-        "level": level,
-        "message": message,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        **fields,
-    }
-    print(json.dumps(entry))
-
-
-def is_duplicate(notification_key):
-    if notification_key in PROCESSED_NOTIFICATION_KEYS:
-        return True
-    PROCESSED_NOTIFICATION_KEYS.add(notification_key)
-    return False
 
 
 def build_email_content(event_type, order_id, reason=None):
@@ -51,20 +30,8 @@ def validate_notification_event(event):
         raise ValueError("Unsupported event_type for notification")
     if not payload.get("email"):
         raise ValueError("Missing recipient email in payload")
-
-
-def unwrap_sqs_record_body(record):
-    body = json.loads(record["body"])
-
-    # SQS subscriptions to SNS receive the SNS envelope in the SQS message body.
-    if isinstance(body, dict) and "Message" in body:
-        return json.loads(body["Message"])
-
-    return body
-
-
 def process_record(record):
-    event = unwrap_sqs_record_body(record)
+    event = parse_sqs_record_body(record)
     order_id = event.get("order_id")
     event_type = event.get("event_type")
 
@@ -79,12 +46,6 @@ def process_record(record):
     payload = event.get("payload", {})
     recipient_email = payload.get("email")
     reason = event.get("reason")
-    notification_key = f"{order_id}:{event_type}"
-
-    if is_duplicate(notification_key):
-        log("INFO", "Skipping duplicate notification event", order_id=order_id, event_type=event_type)
-        return
-
     subject, body_text = build_email_content(event_type, order_id, reason=reason)
 
     ses_client.send_email(
@@ -111,7 +72,3 @@ def lambda_handler(event, context):
             batch_failures.append({"itemIdentifier": message_id})
 
     return {"batchItemFailures": batch_failures}
-
-
-def handler(event, context):
-    return lambda_handler(event, context)

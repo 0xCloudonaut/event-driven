@@ -1,7 +1,7 @@
 // Creating a dynamo db table for keeping track of inventory
 
 module "dynamodb_table" {
-  source   = "terraform-aws-modules/dynamodb-table/aws"
+  source = "terraform-aws-modules/dynamodb-table/aws"
 
   name     = var.dynamodb_table_name
   hash_key = "product_id"

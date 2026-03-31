@@ -1,40 +1,18 @@
-import json
 import os
 from datetime import datetime, timezone
 
 import boto3
 from botocore.exceptions import ClientError
 
+from common import log, parse_sqs_record_body
 
 dynamodb = boto3.resource("dynamodb")
 inventory_table = dynamodb.Table(os.environ["INVENTORY_TABLE"])
 
 
-def log(level, message, **fields):
-    entry = {
-        "level": level,
-        "message": message,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        **fields,
-    }
-    print(json.dumps(entry))
-
-
 def get_inventory_item(product_id):
     response = inventory_table.get_item(Key={"product_id": product_id}, ConsistentRead=True)
     return response.get("Item")
-
-
-def unwrap_sqs_record_body(record):
-    body = json.loads(record["body"])
-
-    # SQS subscriptions to SNS receive the SNS envelope in the SQS message body.
-    if isinstance(body, dict) and "Message" in body:
-        return json.loads(body["Message"])
-
-    return body
-
-
 def validate_inventory_event(event):
     payload = event.get("payload", {})
     if not event.get("order_id"):
@@ -46,7 +24,7 @@ def validate_inventory_event(event):
 
 
 def process_record(record):
-    event = unwrap_sqs_record_body(record)
+    event = parse_sqs_record_body(record)
     order_id = event.get("order_id")
     event_type = event.get("event_type")
 
@@ -70,15 +48,16 @@ def process_record(record):
         raise ValueError("Quantity must be greater than zero")
 
     try:
-        # Deduct stock only once per order by recording the processed order_id on the same item.
+        # Payment processing now performs the stock reservation atomically.
+        # This consumer verifies that reservation and writes a lightweight audit trail.
         inventory_table.update_item(
             Key={"product_id": product_id},
-            UpdateExpression="SET stock = stock - :quantity ADD processed_order_ids :order_id_set",
-            ConditionExpression="stock >= :quantity AND (attribute_not_exists(processed_order_ids) OR NOT contains(processed_order_ids, :order_id))",
+            UpdateExpression="SET last_processed_order_id = :order_id, last_processed_quantity = :quantity, last_processed_at = :processed_at",
+            ConditionExpression="contains(processed_order_ids, :order_id)",
             ExpressionAttributeValues={
-                ":quantity": quantity,
                 ":order_id": order_id,
-                ":order_id_set": {order_id},
+                ":quantity": quantity,
+                ":processed_at": datetime.now(timezone.utc).isoformat(),
             },
             ReturnValues="UPDATED_NEW",
         )
@@ -86,7 +65,7 @@ def process_record(record):
         remaining_stock = int(updated_item.get("stock", 0)) if updated_item else None
         log(
             "INFO",
-            "Inventory updated",
+            "Inventory event acknowledged",
             order_id=order_id,
             product_id=product_id,
             quantity=quantity,
@@ -98,13 +77,13 @@ def process_record(record):
             current_item = get_inventory_item(product_id)
             processed_order_ids = current_item.get("processed_order_ids", set()) if current_item else set()
             if order_id in processed_order_ids:
-                log("INFO", "Skipping duplicate inventory event", order_id=order_id, product_id=product_id)
+                log("INFO", "Inventory audit already recorded", order_id=order_id, product_id=product_id)
                 return
 
             current_stock = int(current_item.get("stock", 0)) if current_item else 0
             log(
                 "ERROR",
-                "Inventory check failed after payment confirmation",
+                "Inventory reservation missing for confirmed order",
                 order_id=order_id,
                 product_id=product_id,
                 quantity=quantity,
@@ -126,7 +105,3 @@ def lambda_handler(event, context):
             batch_failures.append({"itemIdentifier": message_id})
 
     return {"batchItemFailures": batch_failures}
-
-
-def handler(event, context):
-    return lambda_handler(event, context)
