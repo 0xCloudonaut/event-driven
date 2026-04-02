@@ -6,15 +6,7 @@ The project exposes a REST endpoint for order placement, validates and reserves 
 
 ## Architecture
 
-```text
-Client
-  -> API Gateway
-  -> process_payment_lambda
-     -> DynamoDB (check and reserve stock)
-     -> SNS topic
-        -> inventory-management-queue -> inventory_management Lambda
-        -> notification-queue         -> notification_lambda -> SES
-```
+![Architecture Diagram](assets/architecture.png)
 
 ## Tech Stack
 
