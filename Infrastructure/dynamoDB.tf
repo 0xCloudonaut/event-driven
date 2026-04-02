@@ -14,10 +14,6 @@ module "dynamodb_table" {
     {
       name = "product_id"
       type = "S"
-    },
-    {
-      name = "stock"
-      type = "N"
     }
   ]
 
