@@ -2,7 +2,6 @@
 resource "aws_api_gateway_rest_api" "order_place_api" {
   name        = var.api_gateway_name
   description = "API for placing orders"
-  policy      = aws_iam_policy.api_gateway_lambda_invoke.arn
 }
 
 # Create a resource for the order_place_api as order 

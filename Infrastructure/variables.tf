@@ -37,19 +37,37 @@ variable "lambda_runtime" {
 variable "inventory_management_zip_path" {
   description = "Path to the packaged deployment artifact for the inventory management Lambda."
   type        = string
-  default     = "../inventory_management.zip"
+  default     = "../inventory_lambda.zip"
 }
 
 variable "process_payment_zip_path" {
   description = "Path to the packaged deployment artifact for the process-payment Lambda."
   type        = string
-  default     = "../process_payment.zip"
+  default     = "../payment_lambda.zip"
 }
 
 variable "notification_zip_path" {
   description = "Path to the packaged deployment artifact for the notification Lambda."
   type        = string
-  default     = "../notification.zip"
+  default     = "../notification_lambda.zip"
+}
+
+variable "process_payment_timeout" {
+  description = "Timeout in seconds for the payment processing Lambda."
+  type        = number
+  default     = 10
+}
+
+variable "notification_timeout" {
+  description = "Timeout in seconds for the notification Lambda."
+  type        = number
+  default     = 30
+}
+
+variable "inventory_management_timeout" {
+  description = "Timeout in seconds for the inventory management Lambda."
+  type        = number
+  default     = 30
 }
 
 variable "sns_order_place_topic_name" {

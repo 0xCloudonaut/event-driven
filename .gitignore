@@ -1,11 +1,16 @@
 # Python
-./Scripts/__pycache__/
+__pycache__/
 *.pyc
 
 # Terraform
 .terraform/
 *.tfstate
 *.tfstate.backup
+
+# Generated Lambda packages
+payment_lambda.zip
+inventory_lambda.zip
+notification_lambda.zip
 
 # OS
 .DS_Store

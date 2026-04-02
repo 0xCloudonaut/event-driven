@@ -23,6 +23,7 @@ resource "aws_lambda_function" "process_payment_lambda" {
   runtime          = var.lambda_runtime
   handler          = "payment_lambda.lambda_handler"
   role             = aws_iam_role.process_payment_lambda_role.arn
+  timeout          = var.process_payment_timeout
   source_code_hash = filebase64sha256(local.process_payment_zip_path)
   filename         = local.process_payment_zip_path
 
@@ -80,7 +81,7 @@ resource "aws_iam_role_policy_attachment" "process_payment_lambda_role_dynamodb"
 # Attaching the premission for lambda basic execution to the role
 resource "aws_iam_role_policy_attachment" "process_payment_lambda_role_basic_execution" {
   role       = aws_iam_role.process_payment_lambda_role.name
-  policy_arn = aws_iam_policy.lambda_basic_execution.arn
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 # Allowing the API gateway to invoke the process payment lambda function
@@ -101,6 +102,7 @@ resource "aws_lambda_function" "notification_lambda" {
   runtime          = var.lambda_runtime
   handler          = "notification_lambda.lambda_handler"
   role             = aws_iam_role.notification_lambda_role.arn
+  timeout          = var.notification_timeout
   source_code_hash = filebase64sha256(local.notification_zip_path)
   filename         = local.notification_zip_path
 
@@ -156,7 +158,7 @@ resource "aws_iam_role_policy_attachment" "notification_lambda_role_policy_attac
 # Attaching the permission for lambda basic execution to the role
 resource "aws_iam_role_policy_attachment" "notification_lambda_role_basic_execution" {
   role       = aws_iam_role.notification_lambda_role.name
-  policy_arn = aws_iam_policy.lambda_basic_execution.arn
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 ///////////////////////////////////// Inventory Management Lambda function /////////////////////////////////////
@@ -166,6 +168,7 @@ resource "aws_lambda_function" "inventory_management" {
   runtime          = var.lambda_runtime
   handler          = "inventory_lambda.lambda_handler"
   role             = aws_iam_role.inventory_management_lambda_role.arn
+  timeout          = var.inventory_management_timeout
   source_code_hash = filebase64sha256(local.inventory_management_zip_path)
   filename         = local.inventory_management_zip_path
 
@@ -226,5 +229,5 @@ resource "aws_iam_role_policy_attachment" "inventory_management_lambda_role_poli
 # Attaching the permission for lambda basic execution to the role
 resource "aws_iam_role_policy_attachment" "inventory_management_lambda_role_basic_execution" {
   role       = aws_iam_role.inventory_management_lambda_role.name
-  policy_arn = aws_iam_policy.lambda_basic_execution.arn
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
