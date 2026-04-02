@@ -47,7 +47,8 @@ data "aws_iam_policy_document" "process_payment_lambda_role_policy_document" {
     effect = "Allow"
     actions = [
       "dynamodb:GetItem",
-      "dynamodb:Query"
+      "dynamodb:Query",
+      "dynamodb:UpdateItem"
     ]
     resources = [
       module.dynamodb_table.dynamodb_table_arn
