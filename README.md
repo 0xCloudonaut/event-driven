@@ -254,7 +254,7 @@ aws sqs get-queue-attributes \
   --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible
 ```
 
-## Demo Notes
+## Notes
 
 - `process_payment_lambda` performs the inventory reservation atomically in DynamoDB
 - `inventory_management` writes audit metadata after reservation succeeds
